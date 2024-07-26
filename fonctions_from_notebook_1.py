@@ -7,7 +7,7 @@ import xml.etree.ElementTree as ET
 import pandas as pd
 #lib for loading bar
 from tqdm import tqdm
-from keras.preprocessing.image import img_to_array
+from tensorflow.keras.utils import img_to_array
 
 def extract_data_from_annotation(file_path, attributes= ['object/name','object/difficult']):
     tree = ET.parse(file_path)
