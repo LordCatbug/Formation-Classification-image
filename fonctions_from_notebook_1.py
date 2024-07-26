@@ -7,6 +7,7 @@ import xml.etree.ElementTree as ET
 import pandas as pd
 #lib for loading bar
 from tqdm import tqdm
+from keras.preprocessing.image import img_to_array
 
 def extract_data_from_annotation(file_path, attributes= ['object/name','object/difficult']):
     tree = ET.parse(file_path)
@@ -87,14 +88,19 @@ custom_image_functions = [
     apply_equalize_random,
 ]
 
-def apply_alteration_random(img):
+def apply_alteration_random(img,og_size=(224,224)):
     #num_functions = random.randint(1, len(custom_image_functions))
-    num_functions = weighted_random_choice(len(custom_image_functions)+1)
+    num_functions = weighted_random_choice(len(custom_image_functions)+1)    
+
+    if num_functions==0:
+        return img
+    
     modified_image = img.copy()
     for _ in range(num_functions):
         random_function = random.choice(custom_image_functions)
         modified_image = random_function(modified_image)    
-    return modified_image
+
+    return modified_image.resize(og_size)
 
 def get_dogs_picture_breed(images_dir= "./Datas/Images", annotations_dir= "./Datas/Annotation", output_size=(224, 224)):
     """
@@ -125,11 +131,14 @@ def get_dogs_picture_breed(images_dir= "./Datas/Images", annotations_dir= "./Dat
                     corresponding_xml_path = corresponding_xml_path.replace('.png', '').replace('.jpg', '').replace('.jpeg', '')
 
                     if os.path.exists(corresponding_xml_path):
-                        resized_image = resize_image(image_path, output_size)
-                        data.append((apply_alteration_random(resized_image), extract_data_from_annotation(corresponding_xml_path)["object/name"]))
-    
+                        # the comments is here to explain the not commented line
+                        # all is done in one call to avoid the memory allocation every times
+                        #resized_image = resize_image(image_path, output_size)
+                        #altered = apply_alteration_random(resized_image)
+                        #data.append((img_to_array(altered), extract_data_from_annotation(corresponding_xml_path)["object/name"]))
+                        data.append((img_to_array(apply_alteration_random(resize_image(image_path, output_size))), extract_data_from_annotation(corresponding_xml_path)["object/name"]))
             pbar.update(1)
-    return pd.DataFrame(data, columns=['Image', 'Race'])
+    return pd.DataFrame(data, columns=['image', 'breed'])
 
 
 def resize_image(image_path, output_size):
