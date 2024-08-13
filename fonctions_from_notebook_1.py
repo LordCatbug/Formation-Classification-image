@@ -92,7 +92,7 @@ custom_image_functions = [
 
 def apply_alteration_random(img,og_size=(224,224)):
     #num_functions = random.randint(1, len(custom_image_functions))
-    num_functions = weighted_random_choice(len(custom_image_functions)+1)    
+    '''num_functions = weighted_random_choice(len(custom_image_functions)+1)    
 
     if num_functions==0:
         return img
@@ -101,11 +101,16 @@ def apply_alteration_random(img,og_size=(224,224)):
     for _ in range(num_functions):
         random_function = random.choice(custom_image_functions)
         modified_image = random_function(modified_image)    
+'''
+    modified_image = img
+    for funct in custom_image_functions:
+        modified_image = funct(modified_image)
+
 
     modified_image = modified_image.resize(og_size)
 
     if modified_image.mode != 'RGB':
-        modified_image_np = modified_image.convert('RGB')
+        modified_image = modified_image.convert('RGB')
     modified_image_np = np.array(modified_image)
     return modified_image_np
 
@@ -141,7 +146,7 @@ def get_dogs_picture_breed(images_dir= "./Datas/Images", annotations_dir= "./Dat
                         # the comments is here to explain the not commented line
                         # all is done in one call to avoid the memory allocation every times
                         resized_image = resize_image(image_path, output_size)
-                        altered = apply_alteration_random(resized_image)
+                        altered = apply_alteration_random(resized_image, output_size)
                         data.append((img_to_array(altered), extract_data_from_annotation(corresponding_xml_path)["object/name"]))
                         #data.append((img_to_array(apply_alteration_random(resize_image(image_path, output_size))), extract_data_from_annotation(corresponding_xml_path)["object/name"]))
             pbar.update(1)
@@ -178,6 +183,40 @@ def get_dogs_picture_breed_raw(images_dir= "./Datas/Images", annotations_dir= ".
                     if os.path.exists(corresponding_xml_path):
                         resized_image = resize_image(image_path, output_size)
                         data.append((img_to_array(resized_image), extract_data_from_annotation(corresponding_xml_path)["object/name"]))
+            pbar.update(1)
+    return pd.DataFrame(data, columns=['image', 'breed'])
+
+def get_dogs_picture_breed_raw_pics(images_dir= "./Datas/Images", annotations_dir= "./Datas/Annotation", output_size=(224, 224)):
+    """
+    Parcourt les répertoires d'images et d'annotations pour trouver les fichiers correspondants,
+    redimensionne les images + associe les données d'annotation.
+
+    Args:
+        images_dir (str): Chemin vers le répertoire contenant les dossiers des images /breed/"imagages .jpg"
+        annotations_dir (str): Chemin vers le répertoire contenant les annotations /breed/"annotations"
+        output_size (tuple): Taille de sortie pour le redimensionnement des images, par défaut les dimensions 224/224 sont celle de VGG16
+
+    Returns:
+        pd.DataFrame: DataFrame contenant les images et les données extraites des annotations.
+    """
+    data = []
+
+    total_dirs = sum(1 for _ in os.walk(images_dir))
+
+    with tqdm(total=total_dirs, desc="Processing directories") as pbar:
+        for root, _, files in os.walk(images_dir):
+            pbar.set_postfix(current_directory=root)
+
+            for file in files:
+                if file.endswith(('.png', '.jpg', '.jpeg')):
+                    image_path = os.path.join(root, file)
+                    rel_path = os.path.relpath(root, images_dir)
+                    corresponding_xml_path = os.path.join(annotations_dir, rel_path, file)
+                    corresponding_xml_path = corresponding_xml_path.replace('.png', '').replace('.jpg', '').replace('.jpeg', '')
+
+                    if os.path.exists(corresponding_xml_path):
+                        resized_image = resize_image(image_path, output_size)
+                        data.append((resized_image, extract_data_from_annotation(corresponding_xml_path)["object/name"]))
             pbar.update(1)
     return pd.DataFrame(data, columns=['image', 'breed'])
 
